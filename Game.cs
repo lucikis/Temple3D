@@ -6,6 +6,7 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Media;
 
 namespace Temple3D
 {
@@ -17,6 +18,7 @@ namespace Temple3D
         private Texture _textureIarba;
         private Texture _textureCrate;
         private Camera _camera;
+        private SoundPlayer _collectSoundPlayer;
 
         // --- BUFFERING ---
         private int _vao;
@@ -174,11 +176,43 @@ namespace Temple3D
                 Console.WriteLine("Eroare la incarcare crate.png");
             }
 
+            try
+            {
+                // Asigură-te că numele fișierului este exact cel din proiect
+                _collectSoundPlayer = new SoundPlayer("collect-sound.wav");
+                _collectSoundPlayer.Load(); // Pre-încarcă sunetul pentru a fi gata instantaneu
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Nu s-a putut încărca sunetul: {ex.Message}");
+            }
+
             // 4. Cameră
             _camera = new Camera(new Vector3(0, 2.0f, 0), Size.X / (float)Size.Y);
             CursorState = CursorState.Grabbed;
 
             LoadMap();
+
+            // Creare stratul 2 de ziduri
+            for (int z = 9; z >= -15; z -= 6)
+            {
+                CreateWallLayer(18, z);
+            }
+
+            for (int x = 12; x >= -21; x -= 6)
+            {
+                CreateWallLayer(x, 15);
+            }
+
+            for (int x = 12; x >= -21; x -= 6)
+            {
+                CreateWallLayer(x, -21);
+            }
+
+            for (int z = 9; z >= -15; z -= 6)
+            {
+                CreateWallLayer(-24, z);
+            }
 
             var crate1 = new GameObject(new Vector3(10, 0, 6), _cubeMesh, _textureCrate);
             crate1.Scale = new Vector3(1, 1, 1);
@@ -195,6 +229,14 @@ namespace Temple3D
             var artifact1 = new GameObject(new Vector3(9, 5.0f, 10), _artifactMesh, _artifactTexture);
             artifact1.Scale = new Vector3(0.5f);
             _artifacts.Add(artifact1);
+
+            var artifact2 = new GameObject(new Vector3(7, 1.5f, 7), _artifactMesh, _artifactTexture);
+            artifact1.Scale = new Vector3(0.5f);
+            _artifacts.Add(artifact2);
+
+            var artifact3 = new GameObject(new Vector3(-2, 1, 6), _artifactMesh, _artifactTexture);
+            artifact1.Scale = new Vector3(0.5f);
+            _artifacts.Add(artifact3);
         }
 
         private void LoadMap()
@@ -266,6 +308,14 @@ namespace Temple3D
             var wall = new GameObject(new Vector3(pos.X, 1.5f, pos.Z), _cubeMesh, _texturePiatra);
             wall.Scale = new Vector3(size, 4.0f, size); // Zid înalt de 4 unități
             _worldObjects.Add(wall);
+        }
+
+        private void CreateWallLayer(int x, int z)
+        {
+
+            var new_wall = new GameObject(new Vector3(x, 5.5f, z), _cubeMesh, _texturePiatra);
+            new_wall.Scale = new Vector3(6, 4.0f, 6); // Zid înalt de 4 unități
+            _worldObjects.Add(new_wall);
         }
 
         private void CreateArtifact(Vector3 pos)
@@ -405,13 +455,20 @@ namespace Temple3D
                 var art = _artifacts[i];
                 if (art.IsActive)
                 {
-                    // Folosim o verificare de distanță simplă pentru "pickup"
-                    // Deoarece modelul poate avea o formă ciudată, distanța e mai sigură decât AABB
                     float distance = Vector3.Distance(_camera.Position, art.Position);
 
                     if (distance < 1.5f) // Dacă suntem aproape de el
                     {
                         art.IsActive = false; // Îl ascundem
+
+                        // --- AICI ADAUGI REDAREA SUNETULUI ---
+                        if (_collectSoundPlayer != null)
+                        {
+                            // Play() rulează pe un thread separat (asincron), deci nu blochează jocul
+                            _collectSoundPlayer.Play();
+                        }
+                        // -------------------------------------
+
                         _score++;
                         Console.WriteLine($"Artefacte colectate: {_score}/3");
 
@@ -419,7 +476,7 @@ namespace Temple3D
                         {
                             _portalOpen = true;
                             Console.WriteLine("Portalul s-a deschis! Gaseste iesirea.");
-                            GL.ClearColor(0.2f, 0.1f, 0.1f, 1.0f); // Schimbăm culoarea cerului ca feedback
+                            GL.ClearColor(0.2f, 0.1f, 0.1f, 1.0f);
                         }
                     }
                 }

@@ -48,6 +48,7 @@
   <ItemGroup>
     <PackageReference Include="OpenTK" Version="4.9.4" />
     <PackageReference Include="StbImageSharp" Version="2.30.15" />
+    <PackageReference Include="System.Windows.Extensions" Version="10.0.2" />
   </ItemGroup>
 
   <ItemGroup>
