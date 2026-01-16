@@ -17,8 +17,17 @@ namespace Temple3D
         private Texture _texturePiatra;
         private Texture _textureIarba;
         private Texture _textureCrate;
+        private Texture _texArtifactIcon;
+        private Texture _texCollectPrompt; // Imaginea cu "Press E"
         private Camera _camera;
         private SoundPlayer _collectSoundPlayer;
+
+        private bool _showCollectPrompt = false;
+        public enum GameState
+        {
+            Menu,
+            Playing
+        }
 
         // --- BUFFERING ---
         private int _vao;
@@ -56,6 +65,21 @@ namespace Temple3D
             "#......#",
             "########"
         };
+
+        // --- MENU UI ---
+        private GameState _currentState = GameState.Menu;
+        private Shader _uiShader;
+        private Texture _texStartButton;
+        private Texture _texExitButton;
+        public Mesh _quadMesh; // Un pătrat simplu pentru butoane
+
+        private Vector2 _btnStartPos;
+        private Vector2 _btnExitPos;
+        private Vector2 _btnSize = new Vector2(300, 100);
+
+        // Definim geometria unui pătrat 2D (Quad)
+        // Format: Pozitie(3), Normala(3), Textura(2) - pentru a fi compatibil cu Mesh-ul tau
+        
 
         // --- GEOMETRIE (CUB STANDARD - 36 Vârfuri) ---
         private readonly float[] _vertices =
@@ -136,6 +160,34 @@ namespace Temple3D
 
             _cubeMesh = new Mesh(_vertices); // Foloseste array-ul _vertices existent in clasa ta
 
+            try { _texStartButton = new Texture("start_button.png"); } catch { _texStartButton = _textureCrate; }
+            try { _texExitButton = new Texture("exit_button.png"); } catch { _texExitButton = _textureCrate; }
+
+            try { _texArtifactIcon = new Texture("egg_artifact.png"); } catch { _texArtifactIcon = _textureCrate; }
+            try { _texCollectPrompt = new Texture("collect_prompt.png"); } catch { _texCollectPrompt = _textureCrate; }
+
+            // 2. Încărcăm Shader-ul de UI
+            // NOTĂ: Asigură-te că ai creat fișierele ui.vert și ui.frag sau scrie codul direct aici.
+            _uiShader = new Shader("ui.vert", "ui.frag");
+
+            // 3. Creăm un Mesh simplu (un pătrat format din 2 triunghiuri)
+            // Folosim același format ca Mesh.cs (8 floats: 3 pos, 3 norm, 2 tex)
+            float[] quadVertices = {
+            // Pos              // Norm (dummy)      // Tex (V inversat: 0 devine 1, 1 devine 0)
+                -0.5f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // Stânga Sus
+                -0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,   0.0f, 1.0f, // Stânga Jos
+                 0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,   1.0f, 1.0f, // Dreapta Jos
+
+                -0.5f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // Stânga Sus
+                 0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,   1.0f, 1.0f, // Dreapta Jos
+                 0.5f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,   1.0f, 0.0f  // Dreapta Sus
+        };
+            _quadMesh = new Mesh(quadVertices);
+
+            // Poziționăm butoanele pe centrul ecranului
+            _btnStartPos = new Vector2(Size.X / 2, Size.Y / 2 + 60);
+            _btnExitPos = new Vector2(Size.X / 2, Size.Y / 2 - 60);
+
             // Încărcăm modelul extern
             // Exemplu: modelul se numeste "artefact.obj"
             float[] artifactData = ObjLoader.Load("scaled-model.obj");
@@ -214,6 +266,28 @@ namespace Temple3D
                 CreateWallLayer(-24, z);
             }
 
+            //
+
+            for (int z = 9; z >= -15; z -= 6)
+            {
+                CreateWallLayer(18, z);
+            }
+
+            for (int x = 12; x >= -21; x -= 6)
+            {
+                CreateWallLayer(x, 15);
+            }
+
+            for (int x = 12; x >= -21; x -= 6)
+            {
+                CreateWallLayer(x, -21);
+            }
+
+            for (int z = 9; z >= -15; z -= 6)
+            {
+                CreateWallLayer(-24, z);
+            }
+
             var crate1 = new GameObject(new Vector3(10, 0, 6), _cubeMesh, _textureCrate);
             crate1.Scale = new Vector3(1, 1, 1);
             _worldObjects.Add(crate1);
@@ -237,6 +311,8 @@ namespace Temple3D
             var artifact3 = new GameObject(new Vector3(-2, 1, 6), _artifactMesh, _artifactTexture);
             artifact1.Scale = new Vector3(0.5f);
             _artifacts.Add(artifact3);
+
+
         }
 
         private void LoadMap()
@@ -290,6 +366,70 @@ namespace Temple3D
             }
         }
 
+        private void RenderHUD()
+        {
+            // 1. Setări pentru randare 2D peste 3D
+            GL.Disable(EnableCap.DepthTest); // Dezactivăm testul de adâncime ca să desenăm peste tot
+            GL.Enable(EnableCap.Blend);      // Activăm transparența (pentru PNG-uri cu fundal transparent)
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
+            _uiShader.Use();
+
+            // Matricea ortografică (aceeași ca la meniu)
+            Matrix4 projectionUI = Matrix4.CreateOrthographicOffCenter(0, Size.X, Size.Y, 0, -1.0f, 1.0f);
+            _uiShader.SetMatrix4("projection", projectionUI);
+
+            // 2. Desenăm iconițele în funcție de scor
+            float iconSize = 128.0f; // Dimensiunea iconiței (pixeli)
+            float padding = 10.0f;  // Spațiu între iconițe
+            float startX = 80.0f;   // Distanța față de marginea stângă
+            float startY = 80.0f;   // Distanța față de marginea de sus
+
+            for (int i = 0; i < _score; i++)
+            {
+                // Calculăm poziția pentru fiecare ou (le punem unul lângă altul)
+                Vector2 position = new Vector2(startX + (i * (iconSize + padding)), startY);
+
+                // Folosim funcția DrawTexture2D (fosta DrawButton redenumită sau refolosită)
+                DrawTexture2D(position, new Vector2(iconSize, iconSize), _texArtifactIcon);
+            }
+
+            if (_showCollectPrompt)
+            {
+                float promptWidth = 250.0f;  // Ajustează mărimea după preferință
+                float promptHeight = 166.6f;
+
+                // Centrat orizontal, puțin mai jos de jumătatea ecranului
+                float posX = (Size.X / 2.0f);
+                float posY = (Size.Y / 2.0f) + 100.0f;
+
+                Vector2 promptPos = new Vector2(posX, posY);
+                Vector2 promptSize = new Vector2(promptWidth, promptHeight);
+
+                DrawTexture2D(promptPos, promptSize, _texCollectPrompt);
+            }
+
+            // 3. Restaurăm setările pentru randarea 3D
+            GL.Disable(EnableCap.Blend);
+            GL.Enable(EnableCap.DepthTest);
+        }
+
+        // NOTĂ: Poți refolosi funcția 'DrawButton' de data trecută, 
+        // dar este mai bine să o redenumești în 'DrawTexture2D' pentru claritate,
+        // deoarece o folosim și pentru butoane și pentru HUD.
+        private void DrawTexture2D(Vector2 position, Vector2 size, Texture texture)
+        {
+            texture.Use();
+
+            Matrix4 model = Matrix4.Identity;
+            model = model * Matrix4.CreateScale(size.X, size.Y, 1.0f);
+            model = model * Matrix4.CreateTranslation(position.X, position.Y, 0.0f);
+
+            _uiShader.SetMatrix4("model", model);
+
+            _quadMesh.Render();
+        }
+
         // Metode ajutătoare pentru a păstra codul curat
 
         private void CreateFloorTile(Vector3 pos, float size, Texture tex)
@@ -332,6 +472,35 @@ namespace Temple3D
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
             base.OnUpdateFrame(e);
+
+            if (_currentState == GameState.Menu)
+            {
+                // Facem cursorul vizibil și liber
+                CursorState = CursorState.Normal;
+
+                var mouse = MouseState;
+
+                // Verificăm dacă s-a dat click stânga
+                if (mouse.IsButtonPressed(MouseButton.Left))
+                {
+                    // Verificăm coliziunea cu butonul START
+                    if (IsMouseOverButton(mouse.Position, _btnStartPos, _btnSize))
+                    {
+                        _currentState = GameState.Playing;
+
+                        // Când intrăm în joc, blocăm mouse-ul
+                        CursorState = CursorState.Grabbed;
+                    }
+
+                    // Verificăm coliziunea cu butonul EXIT
+                    if (IsMouseOverButton(mouse.Position, _btnExitPos, _btnSize))
+                    {
+                        Close(); // Închide aplicația
+                    }
+                }
+                return; // NU rulăm logica jocului (mișcare, gravitație) cât timp suntem în meniu
+            }
+
             float deltaTime = (float)e.Time;
             var input = KeyboardState;
 
@@ -450,6 +619,8 @@ namespace Temple3D
             }
 
             // Logica Colectare Artefacte
+            _showCollectPrompt = false;
+
             for (int i = 0; i < _artifacts.Count; i++)
             {
                 var art = _artifacts[i];
@@ -457,30 +628,49 @@ namespace Temple3D
                 {
                     float distance = Vector3.Distance(_camera.Position, art.Position);
 
-                    if (distance < 1.5f) // Dacă suntem aproape de el
+                    // Am mărit puțin distanța de interacțiune la 2.0f pentru a fi mai ușor
+                    if (distance < 2.0f)
                     {
-                        art.IsActive = false; // Îl ascundem
+                        // 1. Activăm afișarea mesajului "Press E"
+                        _showCollectPrompt = true;
 
-                        // --- AICI ADAUGI REDAREA SUNETULUI ---
-                        if (_collectSoundPlayer != null)
+                        // 2. Verificăm dacă jucătorul apasă E
+                        if (input.IsKeyDown(Keys.E))
                         {
-                            // Play() rulează pe un thread separat (asincron), deci nu blochează jocul
-                            _collectSoundPlayer.Play();
-                        }
-                        // -------------------------------------
+                            art.IsActive = false; // Îl ascundem (colectat)
 
-                        _score++;
-                        Console.WriteLine($"Artefacte colectate: {_score}/3");
+                            // Redăm sunetul
+                            if (_collectSoundPlayer != null)
+                            {
+                                _collectSoundPlayer.Play();
+                            }
 
-                        if (_score >= 3)
-                        {
-                            _portalOpen = true;
-                            Console.WriteLine("Portalul s-a deschis! Gaseste iesirea.");
-                            GL.ClearColor(0.2f, 0.1f, 0.1f, 1.0f);
+                            _score++;
+                            Console.WriteLine($"Artefacte colectate: {_score}/3");
+
+                            if (_score >= 3)
+                            {
+                                _portalOpen = true;
+                                Console.WriteLine("Portalul s-a deschis!");
+                                GL.ClearColor(0.2f, 0.1f, 0.1f, 1.0f);
+                            }
                         }
                     }
                 }
             }
+        }
+
+        private bool IsMouseOverButton(Vector2 mousePos, Vector2 btnCenter, Vector2 btnSize)
+        {
+            // Coordonatele mouse-ului în OpenTK pot avea originea diferită, dar de obicei sunt (0,0) sus-stânga.
+            // Trebuie să verificăm dreptunghiul.
+            float left = btnCenter.X - btnSize.X / 2;
+            float right = btnCenter.X + btnSize.X / 2;
+            float top = btnCenter.Y - btnSize.Y / 2;
+            float bottom = btnCenter.Y + btnSize.Y / 2;
+
+            return mousePos.X >= left && mousePos.X <= right &&
+                   mousePos.Y >= top && mousePos.Y <= bottom;
         }
 
         protected override void OnRenderFrame(FrameEventArgs e)
@@ -488,37 +678,79 @@ namespace Temple3D
             base.OnRenderFrame(e);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            _shader.Use();
-            _shader.SetInt("uTexture", 0);
-
-            // Uniforme pentru Lumină (lanterna jucătorului)
-            _shader.SetVector3("viewPos", _camera.Position);
-            _shader.SetVector3("lightPos", _camera.Position);
-            _shader.SetVector3("lightColor", new Vector3(1.0f, 0.95f, 0.8f));
-
-            // Matrici Cameră
-            Matrix4 view = _camera.GetViewMatrix();
-            Matrix4 projection = _camera.GetProjectionMatrix(Size.X / (float)Size.Y);
-            _shader.SetMatrix4("view", view);
-            _shader.SetMatrix4("projection", projection);
-
-            GL.BindVertexArray(_vao);
-
-            foreach (var obj in _worldObjects)
+            if (_currentState == GameState.Playing)
             {
-                DrawObject(obj);
-            }
+                _shader.Use();
+                _shader.SetInt("uTexture", 0);
 
-            // Randare Artefacte
-            foreach (var art in _artifacts)
-            {
-                if (art.IsActive)
+                // Uniforme pentru Lumină (lanterna jucătorului)
+                _shader.SetVector3("viewPos", _camera.Position);
+                _shader.SetVector3("lightPos", _camera.Position);
+                _shader.SetVector3("lightColor", new Vector3(1.0f, 0.95f, 0.8f));
+
+                // Matrici Cameră
+                Matrix4 view = _camera.GetViewMatrix();
+                Matrix4 projection = _camera.GetProjectionMatrix(Size.X / (float)Size.Y);
+                _shader.SetMatrix4("view", view);
+                _shader.SetMatrix4("projection", projection);
+
+                GL.BindVertexArray(_vao);
+
+                foreach (var obj in _worldObjects)
                 {
-                    DrawObject(art);
+                    DrawObject(obj);
                 }
+
+                // Randare Artefacte
+                foreach (var art in _artifacts)
+                {
+                    if (art.IsActive)
+                    {
+                        DrawObject(art);
+                    }
+                }
+
+                GL.Enable(EnableCap.DepthTest);
+
+                // --- 2. RANDARE HUD (Peste scena 3D) ---
+                RenderHUD();
+            }
+            else if(_currentState == GameState.Menu)
+            {
+                GL.Disable(EnableCap.DepthTest);
+
+                _uiShader.Use();
+
+                // 2. Matricea de Proiecție Ortografică (2D)
+                // Mapează pixelii (0,0) -> (Size.X, Size.Y)
+                Matrix4 projectionUI = Matrix4.CreateOrthographicOffCenter(0, Size.X, Size.Y, 0, -1.0f, 1.0f);
+                _uiShader.SetMatrix4("projection", projectionUI);
+
+                // 3. Desenăm Butonul START
+                DrawButton(_btnStartPos, _btnSize, _texStartButton);
+
+                // 4. Desenăm Butonul EXIT
+                DrawButton(_btnExitPos, _btnSize, _texExitButton);
+
+                // Reactivăm Depth Test pentru frame-ul următor
+                GL.Enable(EnableCap.DepthTest);
             }
 
             SwapBuffers();
+        }
+
+        private void DrawButton(Vector2 position, Vector2 size, Texture texture)
+        {
+            texture.Use();
+
+            // Calculăm matricea Model pentru a muta și scala pătratul la dimensiunea butonului
+            Matrix4 model = Matrix4.Identity;
+            model = model * Matrix4.CreateScale(size.X, size.Y, 1.0f); // Scalare la dimensiunea în pixeli
+            model = model * Matrix4.CreateTranslation(position.X, position.Y, 0.0f); // Mutare la poziție
+
+            _uiShader.SetMatrix4("model", model);
+
+            _quadMesh.Render();
         }
 
         private void DrawObject(GameObject obj)
@@ -549,6 +781,10 @@ namespace Temple3D
         {
             base.OnResize(e);
             GL.Viewport(0, 0, Size.X, Size.Y);
+
+            // Recalculăm centrul butoanelor
+            _btnStartPos = new Vector2(Size.X / 2, Size.Y / 2 - 60); // Atenție la direcția Y în Ortho
+            _btnExitPos = new Vector2(Size.X / 2, Size.Y / 2 + 60);
         }
     }
 }
