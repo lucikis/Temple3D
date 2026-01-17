@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="cilindru.obj" />
     <None Remove="collect-sound.wav" />
     <None Remove="collect_prompt.png" />
     <None Remove="crate.png" />
@@ -15,7 +16,9 @@
     <None Remove="exit_button.png" />
     <None Remove="grass.png" />
     <None Remove="model.dae" />
+    <None Remove="purple.png" />
     <None Remove="scaled-model.obj" />
+    <None Remove="scaled_portal.obj" />
     <None Remove="start_button.png" />
     <None Remove="stone_test.png" />
     <None Remove="stone_texture.png" />
@@ -24,6 +27,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="cilindru.obj">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="collect-sound.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -45,7 +51,13 @@
     <Content Include="model.dae">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="purple.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="scaled-model.obj">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="scaled_portal.obj">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="start_button.png">
