@@ -22,6 +22,7 @@
     <None Remove="start_button.png" />
     <None Remove="stone_test.png" />
     <None Remove="stone_texture.png" />
+    <None Remove="thank_you.png" />
     <None Remove="title.png" />
     <None Remove="yellow.png" />
   </ItemGroup>
@@ -67,6 +68,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="stone_texture.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="thank_you.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="title.png">

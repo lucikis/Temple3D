@@ -13,13 +13,11 @@ namespace Temple3D
             Handle = GL.GenTexture();
             Use();
 
-            // Setări de randare a texturii (repetare, filtrare)
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMinFilter.Linear);
 
-            // Încărcare imagine folosind StbImageSharp
             StbImage.stbi_set_flip_vertically_on_load(1);
             using (Stream stream = File.OpenRead(path))
             {
