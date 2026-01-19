@@ -18,6 +18,5 @@ void main(void)
     TexCoord = aTexCoord;
     FragPos = vec3(vec4(aPosition, 1.0) * model);
 
-    // Aceasta este linia care iti facea probleme:
     Normal = aNormal * mat3(transpose(inverse(model)));
 }
