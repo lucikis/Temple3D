@@ -18,7 +18,7 @@ namespace Temple3D
         private Texture _textureCrate;
         private Texture _texArtifactIcon;
         private Texture _texCollectPrompt;
-
+        private Texture _texObjective;
         private Texture _texThankYou;
         private GameObject _portalObject;
         private bool _gameFinished = false;
@@ -66,8 +66,10 @@ namespace Temple3D
         private Vector2 _titlePos;
         private Vector2 _btnStartPos;
         private Vector2 _btnExitPos;
+        private Vector2 _objectivePos;
         private Vector2 _btnSize = new Vector2(300, 100);
         private Vector2 _titleSize = new Vector2(800, 379.1f);
+        private Vector2 _objectiveSize = new Vector2(500, 90);
 
         private readonly float[] _vertices =
         {
@@ -149,8 +151,8 @@ namespace Temple3D
             try { _texExitButton = new Texture("exit_button.png"); } catch { _texExitButton = _textureCrate; }
             try { _texArtifactIcon = new Texture("egg_artifact.png"); } catch { _texArtifactIcon = _textureCrate; }
             try { _texCollectPrompt = new Texture("collect_prompt.png"); } catch { _texCollectPrompt = _textureCrate; }
-
             try { _texThankYou = new Texture("thank_you.png"); } catch { _texThankYou = _textureCrate; }
+            try { _texObjective = new Texture("objective.png"); } catch { _texObjective = _textureCrate; }
 
             _uiShader = new Shader("ui.vert", "ui.frag");
 
@@ -168,6 +170,7 @@ namespace Temple3D
             _titlePos = new Vector2(Size.X / 2, Size.Y / 2 - 400);
             _btnStartPos = new Vector2(Size.X / 2, Size.Y / 2 + 60);
             _btnExitPos = new Vector2(Size.X / 2, Size.Y / 2 - 60);
+            _objectivePos = new Vector2(Size.X / 2, Size.Y / 2  + 250);
 
             float[] artifactData = ObjLoader.Load("scaled-model.obj");
             _artifactMesh = new Mesh(artifactData);
@@ -564,6 +567,7 @@ namespace Temple3D
                 DrawButton(_titlePos, _titleSize, _texTitle);
                 DrawButton(_btnStartPos, _btnSize, _texStartButton);
                 DrawButton(_btnExitPos, _btnSize, _texExitButton);
+                DrawButton(_objectivePos, _objectiveSize, _texObjective);
 
                 GL.Enable(EnableCap.DepthTest);
             }

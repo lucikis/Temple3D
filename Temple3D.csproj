@@ -16,6 +16,7 @@
     <None Remove="exit_button.png" />
     <None Remove="grass.png" />
     <None Remove="model.dae" />
+    <None Remove="objective.png" />
     <None Remove="purple.png" />
     <None Remove="scaled-model.obj" />
     <None Remove="scaled_portal.obj" />
@@ -50,6 +51,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="model.dae">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="objective.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="purple.png">
